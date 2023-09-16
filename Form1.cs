@@ -54,7 +54,7 @@ namespace ETL_EXCEL_SQL
                     string Precio = sl.GetCellValueAsString(6, 7).Trim();
 
                     //IF PARA LA VALIDACION DEL ARCHIVO
-                    if (Codigo != "CODIGO" || CodCliente != "COD CLIENTE" || Cliente != "CLIENTE" || Precio != "NUEVO PRECIO")
+                    if (Codigo != "COD PRODUCTO" || CodCliente != "COD CLIENTE" || Cliente != "CLIENTE" || Precio != "NUEVO PRECIO")
                     {
                         MessageBox.Show("FORMATO DE DOCUMENTO EQUIVOCADO", "ERROR DE DOCUMENTO", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         ruta = string.Empty;
@@ -229,19 +229,48 @@ namespace ETL_EXCEL_SQL
                                     reader.Close();
                                 }
 
-                                //INSERTANDO LOS DATOS EN LA TABLA CLIENTES_PRECIOS
-                                using (SqlCommand insrt = new SqlCommand($"INSERT INTO Clientes_precios(Id_cliente, Cliente, Id_inventario, Codigo_producto, Descripcion, precio_p, precio_p_iva) VALUES (@idCliente, @Cliente, @idInventario, @codigoProducto, @Descripcion, @precio_p, @precio_p_iva)", Conexion))
+                                //BUSCANDO ID PRODUCTO Y CLIENTE PARA VERIFICAR SI YA EXISTE EN TABLA CLIENTES_PRECIOS
+                                using (SqlCommand cmdSelect = new SqlCommand($"SELECT id_cliente, id_inventario FROM Clientes_precios WHERE id_cliente=@idCliente AND id_inventario=@idProducto", Conexion))
                                 {
-                                    insrt.CommandType = CommandType.Text;
-                                    insrt.Parameters.AddWithValue("@idCliente", idCliente);
-                                    insrt.Parameters.AddWithValue("@Cliente", Cliente);
-                                    insrt.Parameters.AddWithValue("@idInventario", idProducto);
-                                    insrt.Parameters.AddWithValue("@codigoProducto", codigoProducto);
-                                    insrt.Parameters.AddWithValue("@Descripcion", Descripcion);
-                                    insrt.Parameters.AddWithValue("@precio_p", Precio);
-                                    insrt.Parameters.AddWithValue("@precio_p_iva", Precio_iva);
+                                    cmdSelect.CommandType = CommandType.Text;
+                                    cmdSelect.Parameters.AddWithValue("@idCliente", idCliente);
+                                    cmdSelect.Parameters.AddWithValue("@idProducto", idProducto);
+                                   
+                                    SqlDataReader rdr = cmdSelect.ExecuteReader();
 
-                                    insrt.ExecuteNonQuery();
+                                    if (rdr.HasRows)
+                                    {
+                                        rdr.Close();
+                                        //ACTUALIZANDO EL PRECIO AL CLIENTE EN LA TABLA CLIENTES_PRECIOS
+                                        using (SqlCommand update = new SqlCommand($"UPDATE Clientes_precios SET precio_p=@precio_p, precio_p_iva=@precio_p_iva WHERE id_cliente=@idCliente AND id_inventario=@idInventario", Conexion))
+                                        {
+                                            update.CommandType = CommandType.Text;
+                                            update.Parameters.AddWithValue("@precio_p", Precio);
+                                            update.Parameters.AddWithValue("@precio_p_iva", Precio_iva);
+                                            update.Parameters.AddWithValue("@idCliente", idCliente);
+                                            update.Parameters.AddWithValue("@idInventario", idProducto);
+
+                                            update.ExecuteNonQuery();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        rdr.Close();
+                                        //INSERTANDO LOS DATOS EN LA TABLA CLIENTES_PRECIOS
+                                        using (SqlCommand insrt = new SqlCommand($"INSERT INTO Clientes_precios(Id_cliente, Cliente, Id_inventario, Codigo_producto, Descripcion, precio_p, precio_p_iva) VALUES (@idCliente, @Cliente, @idInventario, @codigoProducto, @Descripcion, @precio_p, @precio_p_iva)", Conexion))
+                                        {
+                                            insrt.CommandType = CommandType.Text;
+                                            insrt.Parameters.AddWithValue("@idCliente", idCliente);
+                                            insrt.Parameters.AddWithValue("@Cliente", Cliente);
+                                            insrt.Parameters.AddWithValue("@idInventario", idProducto);
+                                            insrt.Parameters.AddWithValue("@codigoProducto", codigoProducto);
+                                            insrt.Parameters.AddWithValue("@Descripcion", Descripcion);
+                                            insrt.Parameters.AddWithValue("@precio_p", Precio);
+                                            insrt.Parameters.AddWithValue("@precio_p_iva", Precio_iva);
+
+                                            insrt.ExecuteNonQuery();
+                                        }
+                                    }
                                 }
                             }
                         }
