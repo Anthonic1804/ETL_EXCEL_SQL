@@ -122,6 +122,7 @@ namespace ETL_EXCEL_SQL
                                                 break;
                                             }
                                             else {
+                                                reader.Close();
                                                 btnSiguiente.Enabled = true;
                                                 btnPrevio.Enabled = true;
                                                 //MANEJANDO EL PAGINADO DEL GRID
@@ -389,6 +390,7 @@ namespace ETL_EXCEL_SQL
                                                     }
                                                 }
                                                 else {
+                                                    readerCliente.Close();
                                                     Console.WriteLine("NO SE ENCONTRARON DATOS DE CLIENTES");
                                                 }
                                             }
@@ -407,7 +409,7 @@ namespace ETL_EXCEL_SQL
                                     {
                                         Conexion.Close();
                                     }
-                                    MessageBox.Show("INFORMACIÓN ALMACENADA CORRECTAMENTE \n "+ NombreHojas +"", "INFORMACIÓN", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    MessageBox.Show("INFORMACIÓN DE LA HOJA DE EXCEL \""+NombreHojas+"\" \n ALMACENADA CORRECTAMENTE ", "INFORMACIÓN", MessageBoxButtons.OK, MessageBoxIcon.Information);
                                     btnImportar.Enabled = false;
                                 }
                             }
