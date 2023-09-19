@@ -111,6 +111,7 @@
     </Compile>
     <Compile Include="Inventario.cs" />
     <Compile Include="Modelo\InforGrid.cs" />
+    <Compile Include="Modelo\Pestana.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Form1.resx">

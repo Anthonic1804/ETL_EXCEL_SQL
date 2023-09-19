@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Data;
 using DocumentFormat.OpenXml.Drawing;
+using Microsoft.Win32;
 
 namespace ETL_EXCEL_SQL
 {
@@ -22,6 +23,9 @@ namespace ETL_EXCEL_SQL
 
         string CadenaConexion = System.Configuration.ConfigurationManager.ConnectionStrings["acae"].ConnectionString;
 
+        private List<Pestana> listaPestana = new List<Pestana>();
+        private int indiceActual = 0;
+
         public Form1()
         {
             InitializeComponent();
@@ -30,13 +34,14 @@ namespace ETL_EXCEL_SQL
         private void Form1_Load(object sender, EventArgs e)
         {
             btnImportar.Enabled = false;
-
+            btnPrevio.Enabled = false;
+            btnSiguiente.Enabled = false;
             var sm = GetSystemMenu(Handle, false);
             EnableMenuItem(sm, SC_CLOSE, MF_BYCOMMAND | MF_DISABLED);
         }
 
 
-        private void btnBuscar_Click(object sender, EventArgs e)
+        private void btnBuscar_Click_1(object sender, EventArgs e)
         {
             string ruta;
             OpenFileDialog openFileDialog = new OpenFileDialog() { Filter = "Archivos de Excel|*.xlsx|Archivos de Excel 97-2003|*.xls" };
@@ -50,6 +55,12 @@ namespace ETL_EXCEL_SQL
                     using (SLDocument MultiHoja = new SLDocument(ruta)) 
                     {
                         var TotalHojas = MultiHoja.GetWorksheetNames(); //FUNCION PARA LEER EL NOMBRE DE LA HOJA QUE ESTAMOS CARGANDO
+
+                        //CARGANDO LAS PESTANA A LA LISTA NOMBRE
+                        foreach (var nPestana in TotalHojas) {
+                            listaPestana.Add(new Pestana { Nombre = nPestana });
+                        }
+
 
                         foreach (var NombreHoja in TotalHojas) // RECORRIENDO TODAS LAS HOJAS DEL ARCHIVO
                         {
@@ -72,6 +83,8 @@ namespace ETL_EXCEL_SQL
                                     txtDescripcion.Text = "";
                                     btnImportar.Enabled = false;
                                     txtRuta.Text = "";
+                                    listaPestana.Clear();
+                                    break;
                                 }
                                 else
                                 {
@@ -93,57 +106,9 @@ namespace ETL_EXCEL_SQL
                                             cmd.CommandType = CommandType.Text;
                                             cmd.Parameters.AddWithValue("@CodigoProducto", codigoProducto);
                                             SqlDataReader reader = cmd.ExecuteReader();
-                                            if (reader.HasRows)
+                                            if (!reader.HasRows)
                                             {
-                                                while (reader.Read())
-                                                {
-                                                    idProducto = reader.GetInt32(reader.GetOrdinal("Id"));
-                                                    Descripcion = reader.GetString(reader.GetOrdinal("Descripcion"));
-                                                }
-                                                reader.Close();
-                                                txtIdProducto.Text = idProducto.ToString();
-                                                txtCodigo.Text = codigoProducto;
-                                                txtDescripcion.Text = Descripcion.ToString();
-
-                                                //CARGANDO LA VISUALIZACION DEL ARCHIVO EN EL GRIDVIEW
-                                                /*List<InforGrid> listaClientes = new List<InforGrid>();
-
-                                                 int iRow = 7; // Variable para recorrer el archivo
-
-                                                 while (!string.IsNullOrEmpty(sl.GetCellValueAsString(iRow, 4)))
-                                                 {
-                                                     string CodigoCliente = sl.GetCellValueAsString(iRow, 3).Trim();
-                                                     string NombreCliente = sl.GetCellValueAsString(iRow, 4).Trim();
-                                                     string PrecioUni = sl.GetCellValueAsString(iRow, 5).Trim();
-                                                     string Precio_iva = sl.GetCellValueAsString(iRow, 7).Trim();
-
-                                                     InforGrid cliente = new InforGrid
-                                                     {
-                                                         Codigo = CodigoCliente,
-                                                         Cliente = NombreCliente,
-                                                         PrecioUnitario = "$ " + PrecioUni,
-                                                         PrecioEspecial = "$ " + Precio_iva
-                                                     };
-
-                                                     listaClientes.Add(cliente);
-
-                                                     iRow++;
-                                                 }
-                                                 sl.CloseWithoutSaving();
-
-                                                 dataGridView1.DataSource = listaClientes;
-                                                 dataGridView1.Columns[0].HeaderText = "CODIGO CLIENTE";
-                                                 dataGridView1.Columns[1].HeaderText = "CLIENTE";
-                                                 dataGridView1.Columns[2].HeaderText = "PRECIO UNITARIO";
-                                                 dataGridView1.Columns[3].HeaderText = "PRECIO ESPECIAL";
-
-                                                 dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-                                                 dataGridView1.AutoResizeColumns();
-                                                 dataGridView1.DefaultCellStyle.Font = new System.Drawing.Font("TAHOMA", 11);*/
-                                            }
-                                            else
-                                            {
-                                                MessageBox.Show("EL CÓDIGO \"" + codigoProducto + "\" EN LA HOJA \""+NombreHoja+"\" \n DEL PRODUCTO INGRESADO NO EXISTE", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                                MessageBox.Show("EL CÓDIGO \"" + codigoProducto + "\" EN LA HOJA \"" + NombreHoja + "\" \n DEL PRODUCTO INGRESADO NO EXISTE", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
                                                 reader.Close();
                                                 txtIdProducto.Text = "";
@@ -151,8 +116,20 @@ namespace ETL_EXCEL_SQL
                                                 txtDescripcion.Text = "";
                                                 btnImportar.Enabled = false;
                                                 txtRuta.Text = "";
-
+                                                btnPrevio.Enabled = false;
+                                                btnSiguiente.Enabled = false;
+                                                listaPestana.Clear();
                                                 break;
+                                            }
+                                            else {
+                                                btnSiguiente.Enabled = true;
+                                                btnPrevio.Enabled = true;
+                                                //MANEJANDO EL PAGINADO DEL GRID
+                                                if (indiceActual >= 0 && indiceActual < listaPestana.Count)
+                                                {
+                                                    Pestana registroActual = listaPestana[indiceActual];
+                                                    cargar_grid(txtRuta.Text, registroActual.Nombre);
+                                                }
                                             }
                                         }
                                         catch (Exception ex)
@@ -173,9 +150,107 @@ namespace ETL_EXCEL_SQL
                             }
                         }
                     }
-                }catch (Exception ex)
+                }
+                catch (Exception ex)
                 {
                     MessageBox.Show("EL ARCHIVO ESTÁ SIENDO UTILIZADO, POR FAVOR CIERRELO \nPARA REALIZAR LA IMPORTACIÓN", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void cargar_grid(string ruta, string pestana) {
+
+            using (SLDocument sl = new SLDocument(ruta, pestana)) {
+                string codigoProducto = sl.GetCellValueAsString(4, 3);
+                string Descripcion = "";
+                int idProducto = 0;
+
+                using (SqlConnection Conexion = new SqlConnection(CadenaConexion))
+                {
+                    try
+                    {
+                        Conexion.Open();
+
+                        // Búsqueda del ID del producto (consulta parametrizada)
+                        SqlCommand cmd = new SqlCommand($"SELECT id, descripcion FROM inventario WHERE codigo=@CodigoProducto", Conexion);
+                        cmd.CommandType = CommandType.Text;
+                        cmd.Parameters.AddWithValue("@CodigoProducto", codigoProducto);
+                        SqlDataReader reader = cmd.ExecuteReader();
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                idProducto = reader.GetInt32(reader.GetOrdinal("Id"));
+                                Descripcion = reader.GetString(reader.GetOrdinal("Descripcion"));
+                            }
+                            reader.Close();
+                            txtIdProducto.Text = idProducto.ToString();
+                            txtCodigo.Text = codigoProducto;
+                            txtDescripcion.Text = Descripcion.ToString();
+                            lblPestana.Text = pestana;
+
+                            //CARGANDO LA VISUALIZACION DEL ARCHIVO EN EL GRIDVIEW
+                            List<InforGrid> listaClientes = new List<InforGrid>();
+
+                            int iRow = 7; // Variable para recorrer el archivo
+
+                            while (!string.IsNullOrEmpty(sl.GetCellValueAsString(iRow, 4)))
+                            {
+                                string CodigoCliente = sl.GetCellValueAsString(iRow, 3).Trim();
+                                string NombreCliente = sl.GetCellValueAsString(iRow, 4).Trim();
+                                string PrecioUni = sl.GetCellValueAsString(iRow, 5).Trim();
+                                string Precio_iva = sl.GetCellValueAsString(iRow, 7).Trim();
+
+                                InforGrid cliente = new InforGrid
+                                {
+                                    Codigo = CodigoCliente,
+                                    Cliente = NombreCliente,
+                                    PrecioUnitario = "$ " + PrecioUni,
+                                    PrecioEspecial = "$ " + Precio_iva
+                                };
+
+                                listaClientes.Add(cliente);
+
+                                iRow++;
+                            }
+                            sl.CloseWithoutSaving();
+
+                            dataGridView1.DataSource = listaClientes;
+                            dataGridView1.Columns[0].HeaderText = "CODIGO CLIENTE";
+                            dataGridView1.Columns[1].HeaderText = "CLIENTE";
+                            dataGridView1.Columns[2].HeaderText = "PRECIO UNITARIO";
+                            dataGridView1.Columns[3].HeaderText = "PRECIO ESPECIAL";
+
+                            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
+                            dataGridView1.AutoResizeColumns();
+                            dataGridView1.DefaultCellStyle.Font = new System.Drawing.Font("TAHOMA", 11);
+                        }
+                        else
+                        {
+                            MessageBox.Show("EL CÓDIGO \"" + codigoProducto + "\" EN LA HOJA \"" + pestana + "\" \n DEL PRODUCTO INGRESADO NO EXISTE", "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                            reader.Close();
+                            txtIdProducto.Text = "";
+                            txtCodigo.Text = "";
+                            txtDescripcion.Text = "";
+                            btnImportar.Enabled = false;
+                            txtRuta.Text = "";
+
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // CATCH DEL SELECT DE INVENTARIO
+                        Console.WriteLine("Error: " + ex.Message);
+                    }
+                    finally
+                    {
+                        // Cerrar la conexión
+                        if (Conexion.State == ConnectionState.Open)
+                        {
+                            Conexion.Close();
+                        }
+                    }
                 }
             }
         }
@@ -186,52 +261,65 @@ namespace ETL_EXCEL_SQL
             if (resultado == DialogResult.OK)
             {
                 string ruta = txtRuta.Text;
-                using (SLDocument MultiHojas = new SLDocument(ruta))
+                using (SLDocument MultiHojas = new SLDocument(ruta)) //ABRIR EL DOCUMENTO
                 {
-                    var TotalHojas = MultiHojas.GetWorksheetNames();
+                    var TotalHojas = MultiHojas.GetWorksheetNames(); //LEER LAS PESTANAS
                     foreach (var NombreHojas in TotalHojas)
                     {
-                        Console.WriteLine(NombreHojas);
-                        using (SLDocument sl = new SLDocument(ruta, NombreHojas))
+                        using (SLDocument sl = new SLDocument(ruta, NombreHojas)) //ABRIR EL DOCUMENTO CON PESTANA INDICADA
                         {
                             using (SqlConnection Conexion = new SqlConnection(CadenaConexion))
                             {
-                                //CARGANDO LA INFORMACION DEL EXCEL EN UNA LISTA
-                                List<InforGrid> listaClientes = new List<InforGrid>();
-                                int iRow = 7; // Variable para recorrer el archivo
-
-                                while (!string.IsNullOrEmpty(sl.GetCellValueAsString(iRow, 4)))
-                                {
-                                    string CodigoCliente = sl.GetCellValueAsString(iRow, 3).Trim();
-                                    string NombreCliente = sl.GetCellValueAsString(iRow, 4).Trim();
-                                    string PrecioUni = sl.GetCellValueAsString(iRow, 5).Trim();
-                                    string Precio_iva_ = sl.GetCellValueAsString(iRow, 7).Trim();
-
-                                    InforGrid cliente = new InforGrid
-                                    {
-                                        Codigo = CodigoCliente,
-                                        Cliente = NombreCliente,
-                                        PrecioUnitario = PrecioUni,
-                                        PrecioEspecial = Precio_iva_
-                                    };
-
-                                    listaClientes.Add(cliente);
-
-                                    iRow++;
-                                }
-
-                                //VARIABLES DE INSERCION
-                                string codigoProducto = sl.GetCellValueAsString(4, 3);
-                                string Descripcion = "";
-                                int idProducto = 0;
-
-                                decimal Precio = 0, Precio_iva = 0;
-                                string Cliente = "";
-                                int idCliente = 0;
-
                                 try
                                 {
+                                    //CARGANDO LA INFORMACION DEL EXCEL EN UNA LISTA
+                                    List<InforGrid> listaClientes = new List<InforGrid>();
+                                    int iRow = 7; // Variable para recorrer el archivo
+
+                                    while (!string.IsNullOrEmpty(sl.GetCellValueAsString(iRow, 4)))
+                                    {
+                                        string CodigoCliente = sl.GetCellValueAsString(iRow, 3).Trim();
+                                        string NombreCliente = sl.GetCellValueAsString(iRow, 4).Trim();
+                                        string PrecioUni = sl.GetCellValueAsString(iRow, 5).Trim();
+                                        string Precio_iva_ = sl.GetCellValueAsString(iRow, 7).Trim();
+
+                                        InforGrid cliente = new InforGrid
+                                        {
+                                            Codigo = CodigoCliente,
+                                            Cliente = NombreCliente,
+                                            PrecioUnitario = PrecioUni,
+                                            PrecioEspecial = Precio_iva_
+                                        };
+
+                                        listaClientes.Add(cliente);
+
+                                        iRow++;
+                                    }
+
+                                    //VARIABLES DE INSERCION
+                                    string codigoProducto = sl.GetCellValueAsString(4, 3);
+                                    string Descripcion = "";
+                                    int idProducto = 0;
+
+                                    decimal Precio = 0, Precio_iva = 0;
+                                    string Cliente = "";
+                                    int idCliente = 0;
+
                                     Conexion.Open();
+
+                                    //SELECCIONANDO EL ID DEL PRODUCTO
+                                    using (SqlCommand cmdProducto = new SqlCommand($"SELECT id, descripcion FROM inventario WHERE codigo=@CodigoProducto", Conexion))
+                                    {
+                                        cmdProducto.CommandType = CommandType.Text;
+                                        cmdProducto.Parameters.AddWithValue("@CodigoProducto", codigoProducto);
+                                        SqlDataReader reader = cmdProducto.ExecuteReader();
+                                        while (reader.Read())
+                                        {
+                                            idProducto = reader.GetInt32(reader.GetOrdinal("Id"));
+                                            Descripcion = reader.GetString(reader.GetOrdinal("Descripcion"));
+                                        }
+                                        reader.Close();
+                                    }
 
                                     foreach (InforGrid cliente in listaClientes)
                                     {
@@ -240,32 +328,21 @@ namespace ETL_EXCEL_SQL
                                             Precio_iva = decimal.Parse(cliente.PrecioEspecial);
                                             Precio = Math.Round(Precio_iva / 1.13M, 2);
 
-                                            //SELECCIONANDO EL ID DEL PRODUCTO
-                                            using (SqlCommand cmdProducto = new SqlCommand($"SELECT id, descripcion FROM inventario WHERE codigo=@CodigoProducto", Conexion))
-                                            {
-                                                cmdProducto.CommandType = CommandType.Text;
-                                                cmdProducto.Parameters.AddWithValue("@CodigoProducto", codigoProducto);
-                                                SqlDataReader reader = cmdProducto.ExecuteReader();
-                                                while (reader.Read())
-                                                {
-                                                    idProducto = reader.GetInt32(reader.GetOrdinal("Id"));
-                                                    Descripcion = reader.GetString(reader.GetOrdinal("Descripcion"));
-                                                }
-                                                reader.Close();
-                                            }
-
                                             //SELECCIONAR EL ID DEL CLIENTE
                                             using (SqlCommand cmd = new SqlCommand($"SELECT id, cliente FROM clientes WHERE codigo=@Codigo", Conexion))
                                             {
                                                 cmd.CommandType = CommandType.Text;
-                                                cmd.Parameters.AddWithValue("@Codigo", cliente.Codigo.Trim());
+                                                cmd.Parameters.AddWithValue("@Codigo", cliente.Codigo);
                                                 SqlDataReader readerCliente = cmd.ExecuteReader();
-                                                if (readerCliente.HasRows)
-                                                {
-                                                    idCliente = readerCliente.GetInt32(readerCliente.GetOrdinal("Id"));
-                                                    Cliente = readerCliente.GetString(readerCliente.GetOrdinal("Cliente"));
-
+                                                if (readerCliente.HasRows) 
+                                                { 
+                                                    while (readerCliente.Read())
+                                                    {
+                                                        idCliente = readerCliente.GetInt32(readerCliente.GetOrdinal("Id"));
+                                                        Cliente = readerCliente.GetString(readerCliente.GetOrdinal("Cliente"));
+                                                    }
                                                     readerCliente.Close();
+
 
                                                     //BUSCANDO ID PRODUCTO Y CLIENTE PARA VERIFICAR SI YA EXISTE EN TABLA CLIENTES_PRECIOS
                                                     using (SqlCommand cmdSelect = new SqlCommand($"SELECT id_cliente, id_inventario FROM Clientes_precios WHERE id_cliente=@idCliente AND id_inventario=@idProducto", Conexion))
@@ -311,6 +388,9 @@ namespace ETL_EXCEL_SQL
                                                         }
                                                     }
                                                 }
+                                                else {
+                                                    Console.WriteLine("NO SE ENCONTRARON DATOS DE CLIENTES");
+                                                }
                                             }
                                         }
                                     }
@@ -354,14 +434,26 @@ namespace ETL_EXCEL_SQL
             EnableMenuItem(sm, SC_CLOSE, MF_BYCOMMAND | MF_DISABLED);
         }
 
-        private void groupBox2_Enter(object sender, EventArgs e)
+        private void btnSiguiente_Click(object sender, EventArgs e)
         {
-
+            if (indiceActual < listaPestana.Count - 1)
+            {
+                indiceActual++;
+                Pestana registroActual = listaPestana[indiceActual];
+                lblPestana.Text = registroActual.Nombre;
+                cargar_grid(txtRuta.Text, registroActual.Nombre);
+            }
         }
 
-        private void pictureBox1_Click(object sender, EventArgs e)
+        private void btnPrevio_Click(object sender, EventArgs e)
         {
-
+            if (indiceActual > 0)
+            {
+                indiceActual--;
+                Pestana registroActual = listaPestana[indiceActual];
+                lblPestana.Text = registroActual.Nombre;
+                cargar_grid(txtRuta.Text, registroActual.Nombre);
+            }
         }
     }
 }
