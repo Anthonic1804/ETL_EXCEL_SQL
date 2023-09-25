@@ -326,6 +326,19 @@ namespace ETL_EXCEL_SQL
                                     {
                                         if (cliente.Codigo != "" && cliente.PrecioEspecial != "")
                                         {
+                                            var clienteCodigo = "";
+
+                                            if (cliente.Codigo.Length == 2) {
+                                                clienteCodigo = "000" + cliente.Codigo;
+                                            } else if (cliente.Codigo.Length == 3) {
+                                                clienteCodigo = "00" + cliente.Codigo;
+                                            } else if (cliente.Codigo.Length == 4) {
+                                                clienteCodigo = "0" + cliente.Codigo;
+                                            }else {
+                                                clienteCodigo = cliente.Codigo;
+                                            }
+
+
                                             Precio_iva = decimal.Parse(cliente.PrecioEspecial);
                                             Precio = Math.Round(Precio_iva / 1.13M, 2);
 
@@ -333,7 +346,7 @@ namespace ETL_EXCEL_SQL
                                             using (SqlCommand cmd = new SqlCommand($"SELECT id, cliente FROM clientes WHERE codigo=@Codigo", Conexion))
                                             {
                                                 cmd.CommandType = CommandType.Text;
-                                                cmd.Parameters.AddWithValue("@Codigo", cliente.Codigo);
+                                                cmd.Parameters.AddWithValue("@Codigo", clienteCodigo);
                                                 SqlDataReader readerCliente = cmd.ExecuteReader();
                                                 if (readerCliente.HasRows) 
                                                 { 
