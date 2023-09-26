@@ -44,11 +44,16 @@ namespace ETL_EXCEL_SQL
         private void btnBuscar_Click_1(object sender, EventArgs e)
         {
             string ruta;
+
             OpenFileDialog openFileDialog = new OpenFileDialog() { Filter = "Archivos de Excel|*.xlsx|Archivos de Excel 97-2003|*.xls" };
 
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 ruta = openFileDialog.FileName;
+
+                //LIMPIANDO LISTA DE HOJAS
+                listaPestana.Clear();
+                indiceActual = 0;
 
                 try
                 {
@@ -430,6 +435,7 @@ namespace ETL_EXCEL_SQL
                     }
                 }
             }
+
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
