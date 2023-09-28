@@ -225,7 +225,7 @@ namespace ETL_EXCEL_SQL
                             dataGridView1.Columns[0].HeaderText = "CODIGO CLIENTE";
                             dataGridView1.Columns[1].HeaderText = "CLIENTE";
                             dataGridView1.Columns[2].HeaderText = "PRECIO UNITARIO";
-                            dataGridView1.Columns[3].HeaderText = "PRECIO ESPECIAL";
+                            dataGridView1.Columns[3].HeaderText = "NUEVO PRECIO";
 
                             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
                             dataGridView1.AutoResizeColumns();
@@ -343,9 +343,14 @@ namespace ETL_EXCEL_SQL
                                                 clienteCodigo = cliente.Codigo;
                                             }
 
+                                            /*MODIFICACION A LOS PRECIOS IMPORTADOS
+                                             EL PRECIO EN LA COLUMNA "NUEVO PRECIO" ES SIN IVA*/
 
-                                            Precio_iva = decimal.Parse(cliente.PrecioEspecial);
-                                            Precio = Math.Round(Precio_iva / 1.13M, 2);
+                                            //Precio_iva = decimal.Parse(cliente.PrecioEspecial);
+                                            //Precio = Math.Round(Precio_iva / 1.13M, 2);
+
+                                            Precio = decimal.Parse(cliente.PrecioEspecial);
+                                            Precio_iva = Math.Round(Precio * 1.13M, 2);
 
                                             //SELECCIONAR EL ID DEL CLIENTE
                                             using (SqlCommand cmd = new SqlCommand($"SELECT id, cliente FROM clientes WHERE codigo=@Codigo", Conexion))
