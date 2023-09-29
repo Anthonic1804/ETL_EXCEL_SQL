@@ -11,6 +11,6 @@ namespace ETL_EXCEL_SQL.Modelo
         public string Codigo { get; set; }
         public string Cliente { get; set; }
         public string PrecioUnitario { get; set; }
-        public string PrecioEspecial { get; set; }
+        public string PrecioNuevo { get; set; }
     }
 }

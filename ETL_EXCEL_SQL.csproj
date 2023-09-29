@@ -109,6 +109,7 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="FuncionesController.cs" />
     <Compile Include="Inventario.cs" />
     <Compile Include="Modelo\InforGrid.cs" />
     <Compile Include="Modelo\Pestana.cs" />

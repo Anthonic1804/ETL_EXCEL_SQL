@@ -6,8 +6,6 @@ using ETL_EXCEL_SQL.Modelo;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Data;
-using DocumentFormat.OpenXml.Drawing;
-using Microsoft.Win32;
 
 namespace ETL_EXCEL_SQL
 {
@@ -212,7 +210,7 @@ namespace ETL_EXCEL_SQL
                                     Codigo = CodigoCliente,
                                     Cliente = NombreCliente,
                                     PrecioUnitario = "$ " + PrecioUni,
-                                    PrecioEspecial = "$ " + Precio_iva
+                                    PrecioNuevo = "$ " + Precio_iva
                                 };
 
                                 listaClientes.Add(cliente);
@@ -266,179 +264,173 @@ namespace ETL_EXCEL_SQL
             DialogResult resultado = MessageBox.Show("¿Deseas Importar la Información?", "Confirmación", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (resultado == DialogResult.OK)
             {
-                string ruta = txtRuta.Text;
-                using (SLDocument MultiHojas = new SLDocument(ruta)) //ABRIR EL DOCUMENTO
-                {
-                    var TotalHojas = MultiHojas.GetWorksheetNames(); //LEER LAS PESTANAS
-                    foreach (var NombreHojas in TotalHojas)
+                try {
+                    string ruta = txtRuta.Text;
+                    using (SLDocument MultiHojas = new SLDocument(ruta)) //ABRIR EL DOCUMENTO
                     {
-                        using (SLDocument sl = new SLDocument(ruta, NombreHojas)) //ABRIR EL DOCUMENTO CON PESTANA INDICADA
+                        var TotalHojas = MultiHojas.GetWorksheetNames(); //LEER LAS PESTANAS
+                        foreach (var NombreHojas in TotalHojas)
                         {
-                            using (SqlConnection Conexion = new SqlConnection(CadenaConexion))
+                            using (SLDocument sl = new SLDocument(ruta, NombreHojas)) //ABRIR EL DOCUMENTO CON PESTANA INDICADA
                             {
-                                try
+                                using (SqlConnection Conexion = new SqlConnection(CadenaConexion))
                                 {
-                                    //CARGANDO LA INFORMACION DEL EXCEL EN UNA LISTA
-                                    List<InforGrid> listaClientes = new List<InforGrid>();
-                                    int iRow = 7; // Variable para recorrer el archivo
-
-                                    while (!string.IsNullOrEmpty(sl.GetCellValueAsString(iRow, 4)))
+                                    try
                                     {
-                                        string CodigoCliente = sl.GetCellValueAsString(iRow, 3).Trim();
-                                        string NombreCliente = sl.GetCellValueAsString(iRow, 4).Trim();
-                                        string PrecioUni = sl.GetCellValueAsString(iRow, 5).Trim();
-                                        string Precio_iva_ = sl.GetCellValueAsString(iRow, 7).Trim();
+                                        //FUNCIONES PRINCIPALES
+                                        FuncionesController Funciones = new FuncionesController(Conexion);
 
-                                        InforGrid cliente = new InforGrid
+                                        //CARGANDO LA INFORMACION DEL EXCEL EN UNA LISTA
+                                        List<InforGrid> listaClientes = new List<InforGrid>();
+                                        int iRow = 7; // Variable para recorrer el archivo
+
+                                        while (!string.IsNullOrEmpty(sl.GetCellValueAsString(iRow, 4)))
                                         {
-                                            Codigo = CodigoCliente,
-                                            Cliente = NombreCliente,
-                                            PrecioUnitario = PrecioUni,
-                                            PrecioEspecial = Precio_iva_
-                                        };
+                                            string CodigoCliente = sl.GetCellValueAsString(iRow, 3).Trim();
+                                            string NombreCliente = sl.GetCellValueAsString(iRow, 4).Trim();
+                                            string PrecioUni = sl.GetCellValueAsString(iRow, 5).Trim();
+                                            string Precio_iva_ = sl.GetCellValueAsString(iRow, 7).Trim();
 
-                                        listaClientes.Add(cliente);
-
-                                        iRow++;
-                                    }
-
-                                    //VARIABLES DE INSERCION
-                                    string codigoProducto = sl.GetCellValueAsString(4, 3);
-                                    string Descripcion = "";
-                                    int idProducto = 0;
-
-                                    decimal Precio = 0, Precio_iva = 0;
-                                    string Cliente = "";
-                                    int idCliente = 0;
-
-                                    Conexion.Open();
-
-                                    //SELECCIONANDO EL ID DEL PRODUCTO
-                                    using (SqlCommand cmdProducto = new SqlCommand($"SELECT id, descripcion FROM inventario WHERE codigo=@CodigoProducto", Conexion))
-                                    {
-                                        cmdProducto.CommandType = CommandType.Text;
-                                        cmdProducto.Parameters.AddWithValue("@CodigoProducto", codigoProducto);
-                                        SqlDataReader reader = cmdProducto.ExecuteReader();
-                                        while (reader.Read())
-                                        {
-                                            idProducto = reader.GetInt32(reader.GetOrdinal("Id"));
-                                            Descripcion = reader.GetString(reader.GetOrdinal("Descripcion"));
-                                        }
-                                        reader.Close();
-                                    }
-
-                                    foreach (InforGrid cliente in listaClientes)
-                                    {
-                                        if (cliente.Codigo != "" && cliente.PrecioEspecial != "")
-                                        {
-                                            var clienteCodigo = "";
-
-                                            if (cliente.Codigo.Length == 2) {
-                                                clienteCodigo = "000" + cliente.Codigo;
-                                            } else if (cliente.Codigo.Length == 3) {
-                                                clienteCodigo = "00" + cliente.Codigo;
-                                            } else if (cliente.Codigo.Length == 4) {
-                                                clienteCodigo = "0" + cliente.Codigo;
-                                            }else {
-                                                clienteCodigo = cliente.Codigo;
-                                            }
-
-                                            /*MODIFICACION A LOS PRECIOS IMPORTADOS
-                                             EL PRECIO EN LA COLUMNA "NUEVO PRECIO" ES SIN IVA*/
-
-                                            //Precio_iva = decimal.Parse(cliente.PrecioEspecial);
-                                            //Precio = Math.Round(Precio_iva / 1.13M, 2);
-
-                                            Precio = decimal.Parse(cliente.PrecioEspecial);
-                                            Precio_iva = Math.Round(Precio * 1.13M, 2);
-
-                                            //SELECCIONAR EL ID DEL CLIENTE
-                                            using (SqlCommand cmd = new SqlCommand($"SELECT id, cliente FROM clientes WHERE codigo=@Codigo", Conexion))
+                                            InforGrid cliente = new InforGrid
                                             {
-                                                cmd.CommandType = CommandType.Text;
-                                                cmd.Parameters.AddWithValue("@Codigo", clienteCodigo);
-                                                SqlDataReader readerCliente = cmd.ExecuteReader();
-                                                if (readerCliente.HasRows) 
-                                                { 
-                                                    while (readerCliente.Read())
+                                                Codigo = CodigoCliente,
+                                                Cliente = NombreCliente,
+                                                PrecioUnitario = PrecioUni,
+                                                PrecioNuevo = Precio_iva_
+                                            };
+
+                                            listaClientes.Add(cliente);
+
+                                            iRow++;
+                                        }
+
+                                        //VARIABLES DE INSERCION
+                                        string codigoProducto = sl.GetCellValueAsString(4, 3);
+                                        string Descripcion = "";
+                                        int idProducto = 0;
+
+                                        decimal Precio = 0, Precio_iva = 0;
+                                        string Cliente = "";
+                                        int idCliente = 0;
+
+                                        Conexion.Open();
+
+                                        //SELECCIONANDO EL ID DEL PRODUCTO
+                                        using (SqlCommand cmdProducto = new SqlCommand($"SELECT id, descripcion FROM inventario WHERE codigo=@CodigoProducto", Conexion))
+                                        {
+                                            cmdProducto.CommandType = CommandType.Text;
+                                            cmdProducto.Parameters.AddWithValue("@CodigoProducto", codigoProducto);
+                                            SqlDataReader reader = cmdProducto.ExecuteReader();
+                                            while (reader.Read())
+                                            {
+                                                idProducto = reader.GetInt32(reader.GetOrdinal("Id"));
+                                                Descripcion = reader.GetString(reader.GetOrdinal("Descripcion"));
+                                            }
+                                            reader.Close();
+                                        }
+
+                                        foreach (InforGrid cliente in listaClientes)
+                                        {
+                                            if (cliente.Codigo != "")
+                                            {
+                                                //ADAPTANDO EL CAMPO CODIGO PARA COMPARAR
+                                                var clienteCodigo = "";
+
+                                                if (cliente.Codigo.Length == 2)
+                                                {
+                                                    clienteCodigo = "000" + cliente.Codigo;
+                                                }
+                                                else if (cliente.Codigo.Length == 3)
+                                                {
+                                                    clienteCodigo = "00" + cliente.Codigo;
+                                                }
+                                                else if (cliente.Codigo.Length == 4)
+                                                {
+                                                    clienteCodigo = "0" + cliente.Codigo;
+                                                }
+                                                else
+                                                {
+                                                    clienteCodigo = cliente.Codigo;
+                                                }
+
+
+                                                //VERIFICANDO LAS COLUMNAS NUEVO PRECIO Y PRECIO UNITARIO
+                                                if (cliente.PrecioNuevo != "")
+                                                {
+                                                    //TOMANDO EL VALOR DE LA COLUMNA NUEVO PRECIO
+                                                    Precio = decimal.Parse(cliente.PrecioNuevo);
+                                                    Precio_iva = Math.Round(Precio * 1.13M, 4);
+                                                }
+                                                else
+                                                {
+                                                    //TOMANDO EL VALOR DE LA COLUMNA PRECIO UNITARIO
+                                                    Precio = decimal.Parse(cliente.PrecioUnitario);
+                                                    Precio_iva = Math.Round(Precio * 1.13M, 4);
+                                                }
+
+
+                                                //SELECCIONAR EL ID DEL CLIENTE
+                                                using (SqlCommand cmd = new SqlCommand($"SELECT id, cliente FROM clientes WHERE codigo=@Codigo", Conexion))
+                                                {
+                                                    cmd.CommandType = CommandType.Text;
+                                                    cmd.Parameters.AddWithValue("@Codigo", clienteCodigo);
+                                                    SqlDataReader readerCliente = cmd.ExecuteReader();
+                                                    if (readerCliente.HasRows)
                                                     {
-                                                        idCliente = readerCliente.GetInt32(readerCliente.GetOrdinal("Id"));
-                                                        Cliente = readerCliente.GetString(readerCliente.GetOrdinal("Cliente"));
-                                                    }
-                                                    readerCliente.Close();
-
-
-                                                    //BUSCANDO ID PRODUCTO Y CLIENTE PARA VERIFICAR SI YA EXISTE EN TABLA CLIENTES_PRECIOS
-                                                    using (SqlCommand cmdSelect = new SqlCommand($"SELECT id_cliente, id_inventario FROM Clientes_precios WHERE id_cliente=@idCliente AND id_inventario=@idProducto", Conexion))
-                                                    {
-                                                        cmdSelect.CommandType = CommandType.Text;
-                                                        cmdSelect.Parameters.AddWithValue("@idCliente", idCliente);
-                                                        cmdSelect.Parameters.AddWithValue("@idProducto", idProducto);
-
-                                                        SqlDataReader rdr = cmdSelect.ExecuteReader();
-
-                                                        if (rdr.HasRows)
+                                                        while (readerCliente.Read())
                                                         {
-                                                            rdr.Close();
-                                                            //ACTUALIZANDO EL PRECIO AL CLIENTE EN LA TABLA CLIENTES_PRECIOS
-                                                            using (SqlCommand update = new SqlCommand($"UPDATE Clientes_precios SET precio_p=@precio_p, precio_p_iva=@precio_p_iva WHERE id_cliente=@idCliente AND id_inventario=@idInventario", Conexion))
-                                                            {
-                                                                update.CommandType = CommandType.Text;
-                                                                update.Parameters.AddWithValue("@precio_p", Precio);
-                                                                update.Parameters.AddWithValue("@precio_p_iva", Precio_iva);
-                                                                update.Parameters.AddWithValue("@idCliente", idCliente);
-                                                                update.Parameters.AddWithValue("@idInventario", idProducto);
+                                                            idCliente = readerCliente.GetInt32(readerCliente.GetOrdinal("Id"));
+                                                            Cliente = readerCliente.GetString(readerCliente.GetOrdinal("Cliente"));
+                                                        }
+                                                        readerCliente.Close();
 
-                                                                update.ExecuteNonQuery();
-                                                            }
+
+                                                        //BUSCANDO ID PRODUCTO Y CLIENTE PARA VERIFICAR SI YA EXISTE EN TABLA CLIENTES_PRECIOS
+                                                        if (Funciones.BuscarClientePrecio(idCliente, idProducto) == true)
+                                                        {
+                                                            //ACTUALIZANDO EL PRECIO AL CLIENTE EN LA TABLA CLIENTES_PRECIO
+                                                            Funciones.ActualizarPrecio(Precio, Precio_iva, idCliente, idProducto);
                                                         }
                                                         else
                                                         {
-                                                            rdr.Close();
                                                             //INSERTANDO LOS DATOS EN LA TABLA CLIENTES_PRECIOS
-                                                            using (SqlCommand insrt = new SqlCommand($"INSERT INTO Clientes_precios(Id_cliente, Cliente, Id_inventario, Codigo_producto, Descripcion, precio_p, precio_p_iva) VALUES (@idCliente, @Cliente, @idInventario, @codigoProducto, @Descripcion, @precio_p, @precio_p_iva)", Conexion))
-                                                            {
-                                                                insrt.CommandType = CommandType.Text;
-                                                                insrt.Parameters.AddWithValue("@idCliente", idCliente);
-                                                                insrt.Parameters.AddWithValue("@Cliente", Cliente);
-                                                                insrt.Parameters.AddWithValue("@idInventario", idProducto);
-                                                                insrt.Parameters.AddWithValue("@codigoProducto", codigoProducto);
-                                                                insrt.Parameters.AddWithValue("@Descripcion", Descripcion);
-                                                                insrt.Parameters.AddWithValue("@precio_p", Precio);
-                                                                insrt.Parameters.AddWithValue("@precio_p_iva", Precio_iva);
-
-                                                                insrt.ExecuteNonQuery();
-                                                            }
+                                                            Funciones.InsertarPrecio(idCliente, Cliente, idProducto, codigoProducto, Descripcion, Precio, Precio_iva);
                                                         }
+
                                                     }
-                                                }
-                                                else {
-                                                    readerCliente.Close();
-                                                    Console.WriteLine("NO SE ENCONTRARON DATOS DE CLIENTES");
+                                                    else
+                                                    {
+                                                        readerCliente.Close();
+                                                        Console.WriteLine("NO SE ENCONTRARON DATOS DE CLIENTES");
+                                                    }
                                                 }
                                             }
                                         }
                                     }
-                                }
-                                catch (Exception ex)
-                                {
-                                    // Manejo de excepciones aquí
-                                    Console.WriteLine("Error: " + ex.Message);
-                                }
-                                finally
-                                {
-                                    // Cerrar la conexión y otros recursos aquí
-                                    if (Conexion.State == ConnectionState.Open)
+                                    catch (Exception ex)
                                     {
-                                        Conexion.Close();
+                                        // Manejo de excepciones aquí
+                                        Console.WriteLine("Error: " + ex.Message);
                                     }
-                                    MessageBox.Show("INFORMACIÓN DE LA HOJA DE EXCEL \""+NombreHojas+"\" \n ALMACENADA CORRECTAMENTE ", "INFORMACIÓN", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                    btnImportar.Enabled = false;
+                                    finally
+                                    {
+                                        // Cerrar la conexión y otros recursos aquí
+                                        if (Conexion.State == ConnectionState.Open)
+                                        {
+                                            Conexion.Close();
+                                        }
+                                        MessageBox.Show("INFORMACIÓN DE LA HOJA DE EXCEL \"" + NombreHojas + "\" \n ALMACENADA CORRECTAMENTE ", "INFORMACIÓN", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                        btnImportar.Enabled = false;
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                catch (Exception ex) {
+                    MessageBox.Show("EL ARCHIVO SE ENCUENTRA ABIERTO", "INFORMACIÓN", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                
             }
 
         }
